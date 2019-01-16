@@ -79,7 +79,7 @@ python -u ./LSTMEncDecAttn.py \
 
 import sys
 import collections
-import six.moves.cPickle as pickle
+import pickle
 import copy
 import numpy as np
 import bottleneck as bn
@@ -87,7 +87,6 @@ import argparse
 import time
 import random
 import math
-import six
 import io
 # import codecs
 
@@ -111,7 +110,8 @@ class Chainer_GradientClipping_rmk_v1(chainer.optimizer.GradientClipping):
         self.norm_orig = 1
 
     def __call__(self, opt):
-        self.norm_orig = np.sqrt(chainer.optimizer._sum_sqnorm([p.grad for p in opt.target.params()]))
+        self.norm_orig = np.sqrt(
+            chainer.optimizer_hooks.gradient_clipping._sum_sqnorm([p.grad for p in opt.target.params()]))
         self.norm = self.norm_orig
         self.rate = self.threshold / self.norm_orig
         if self.rate < 1:
@@ -128,7 +128,7 @@ class NLayerLSTM(chainer.ChainList):
 
     def __init__(self, n_layers=2, eDim=512, hDim=512, name=""):
         layers = [0] * n_layers  # 層分の領域を確保
-        for z in six.moves.range(n_layers):
+        for z in range(n_layers):
             if z == 0:  # 第一層の次元数は eDim
                 tDim = eDim
             else:  # 第二層以上は前の層の出力次元が入力次元となるのでhDim
@@ -164,7 +164,7 @@ class NLayerLSTM(chainer.ChainList):
     # 連続でLSTMを回せない時に一旦情報を保持するための関数
     def getAllLSTMStates(self):
         lstm_state_list_out = [0] * len(self) * 2
-        for z in six.moves.range(len(self)):
+        for z in range(len(self)):
             lstm_state_list_out[2 * z] = self[z].c
             lstm_state_list_out[2 * z + 1] = self[z].h
         # 扱いやすくするために，stackを使って一つの Chainer Variableにして返す
@@ -172,7 +172,7 @@ class NLayerLSTM(chainer.ChainList):
 
     # 用途としては，上のgetAllLSTMStatesで保存したものをセットし直すための関数
     def setAllLSTMStates(self, lstm_state_list_in):
-        for z in six.moves.range(len(self)):
+        for z in range(len(self)):
             self[z].c = lstm_state_list_in[2 * z]
             self[z].h = lstm_state_list_in[2 * z + 1]
 
@@ -184,12 +184,12 @@ class NStepLSTMpp(chainer.ChainList):
         direction = 1  # ここでは，からなず一方向ずつ構築するので1にする
         t_name = name
         if name is not "":
-            t_name = '%s_' % (name)
+            t_name = '%s_' % name
 
-        for i in six.moves.range(n_layers):
-            for di in six.moves.range(direction):
+        for i in range(n_layers):
+            for di in range(direction):
                 weight = chainer.Link()
-                for j in six.moves.range(8):
+                for j in range(8):
                     if i == 0 and j < 4:
                         w_in = in_size
                     elif i > 0 and j < 4:
@@ -210,27 +210,27 @@ class NStepLSTMpp(chainer.ChainList):
         self.use_cudnn = use_cudnn
         self.out_size = out_size
         self.direction = direction
-        self.ws = [[getattr(w, '%sw0' % (t_name)),
-                    getattr(w, '%sw1' % (t_name)),
-                    getattr(w, '%sw2' % (t_name)),
-                    getattr(w, '%sw3' % (t_name)),
-                    getattr(w, '%sw4' % (t_name)),
-                    getattr(w, '%sw5' % (t_name)),
-                    getattr(w, '%sw6' % (t_name)),
-                    getattr(w, '%sw7' % (t_name))] for w in self]
-        self.bs = [[getattr(w, '%sb0' % (t_name)),
-                    getattr(w, '%sb1' % (t_name)),
-                    getattr(w, '%sb2' % (t_name)),
-                    getattr(w, '%sb3' % (t_name)),
-                    getattr(w, '%sb4' % (t_name)),
-                    getattr(w, '%sb5' % (t_name)),
-                    getattr(w, '%sb6' % (t_name)),
-                    getattr(w, '%sb7' % (t_name))] for w in self]
+        self.ws = [[getattr(w, '%sw0' % t_name),
+                    getattr(w, '%sw1' % t_name),
+                    getattr(w, '%sw2' % t_name),
+                    getattr(w, '%sw3' % t_name),
+                    getattr(w, '%sw4' % t_name),
+                    getattr(w, '%sw5' % t_name),
+                    getattr(w, '%sw6' % t_name),
+                    getattr(w, '%sw7' % t_name)] for w in self]
+        self.bs = [[getattr(w, '%sb0' % t_name),
+                    getattr(w, '%sb1' % t_name),
+                    getattr(w, '%sb2' % t_name),
+                    getattr(w, '%sb3' % t_name),
+                    getattr(w, '%sb4' % t_name),
+                    getattr(w, '%sb5' % t_name),
+                    getattr(w, '%sb6' % t_name),
+                    getattr(w, '%sb7' % t_name)] for w in self]
 
     def init_hx(self, xs):
         hx_shape = self.n_layers * self.direction
         with cuda.get_device_from_id(self._device_id):
-            if args.chainer_version_check[0] == 2:
+            if args.chainer_version_check[0] == 5:
                 hx = chainer.Variable(self.xp.zeros((hx_shape, xs.data.shape[1], self.out_size), dtype=xs.dtype))
             else:
                 hx = chainer.Variable(
@@ -246,7 +246,7 @@ class NStepLSTMpp(chainer.ChainList):
         # hx, cx は (layer数, minibatch数，出力次元数)のtensor
         # xsは (系列長, minibatch数，出力次元数)のtensor
         # Note: chaFunc.n_step_lstm() は最初の入力層にはdropoutしない仕様
-        if args.chainer_version_check[0] == 2:
+        if args.chainer_version_check[0] == 5:
             hy, cy, ys = chaFunc.n_step_lstm(self.n_layers, self.dropout_rate, hx, cx, self.ws, self.bs, xs)
         else:
             hy, cy, ys = chaFunc.n_step_lstm(
@@ -265,7 +265,7 @@ class NStepLSTMpp(chainer.ChainList):
 class NLayerCuLSTM(chainer.ChainList):
     def __init__(self, n_layers, eDim, hDim, name=""):
         layers = [0] * n_layers
-        for z in six.moves.range(n_layers):
+        for z in range(n_layers):
             if name is not "":  # 名前を付ける
                 t_name = '%s_L%d' % (name, z + 1)
             # 毎回一層分のNStepLSTMを作成
@@ -283,7 +283,7 @@ class NLayerCuLSTM(chainer.ChainList):
         # Note: chaFunc.n_step_lstm() は最初の入力にはdropoutしない仕様なので，
         # 一層毎に手動で作った場合は手動でdropoutが必要
         if layer_num > 0:
-            if args.chainer_version_check[0] == 2:
+            if args.chainer_version_check[0] == 5:
                 hin = chaFunc.dropout(input_state_list, ratio=dropout_rate)
             else:
                 hin = chaFunc.dropout(input_state_list, train=args.dropout_mode, ratio=dropout_rate)
@@ -300,8 +300,8 @@ class EncoderDecoderAttention:
         self.encoderVocab = encoderVocab  # encoderの語彙
         self.decoderVocab = decoderVocab  # decoderの語彙
         # 語彙からIDを取得するための辞書
-        self.index2encoderWord = {v: k for k, v in six.iteritems(self.encoderVocab)}  # 実際はなくてもいい
-        self.index2decoderWord = {v: k for k, v in six.iteritems(self.decoderVocab)}  # decoderで利用
+        self.index2encoderWord = {v: k for k, v in self.encoderVocab.items()}  # 実際はなくてもいい
+        self.index2decoderWord = {v: k for k, v in self.decoderVocab.items()}  # decoderで利用
         self.eDim = setting.eDim
         self.hDim = setting.hDim
         self.flag_dec_ifeed = setting.flag_dec_ifeed
@@ -401,7 +401,7 @@ class EncoderDecoderAttention:
         sys.stdout.write("############ Current Parameters END\n")
 
         if init_type == "uniform":
-            sys.stdout.write("# initializer is [uniform] [%f]\n" % (init_scale))
+            sys.stdout.write("# initializer is [uniform] [%f]\n" % init_scale)
             t_initializer = chainer.initializers.Uniform(init_scale)
             named_params = sorted(optimizer.target.namedparams(), key=lambda x: x[0])
             for n, p in named_params:
@@ -411,7 +411,7 @@ class EncoderDecoderAttention:
                     else:
                         chainer.initializers.init_weight(p.data, t_initializer)
         elif init_type == "normal":
-            sys.stdout.write("# initializer is [normal] [%f]\n" % (init_scale))
+            sys.stdout.write("# initializer is [normal] [%f]\n" % init_scale)
             t_initializer = chainer.initializers.Normal(init_scale)
             named_params = sorted(optimizer.target.namedparams(), key=lambda x: x[0])
             for n, p in named_params:
@@ -434,7 +434,7 @@ class EncoderDecoderAttention:
         total_param = 0
         named_params = sorted(optimizer.target.namedparams(), key=lambda x: x[0])
         for n, p in named_params:
-            t_norm = chainer.optimizer._sum_sqnorm(p.data)
+            t_norm = chainer.optimizer_hooks.gradient_clipping._sum_sqnorm(p.data)
             sys.stdout.write('### {} {} {} {} {}\n'.format(p.name, p.data.ndim, p.data.shape, p.data.size, t_norm))
             total_norm += t_norm
             total_param += p.data.size
@@ -474,7 +474,7 @@ class EncoderDecoderAttention:
     # encoder側の入力を処理する関数
     def encodeSentenceFWD(self, train_mode, sentence, args, dropout_rate):
         if args.gpu_enc != args.gpu_dec:  # encとdecが別GPUの場合
-            chainer.cuda.get_device(args.gpu_enc).use()
+            cuda.get_device_from_id(args.gpu_enc).use()
         encLen = len(sentence)  # 文長
         cMBSize = len(sentence[0])  # minibatch size
 
@@ -486,12 +486,12 @@ class EncoderDecoderAttention:
         if self.flag_merge_encfwbw == 0:  # fwとbwは途中で混ぜない最後で混ぜる
             hyf, cyf, fwHout = self.model.encLSTM_f(None, None, encEmbList, flag_train, args)  # 前向き
             hyb, cyb, bkHout = self.model.encLSTM_b(None, None, encEmbList[::-1], flag_train, args)  # 後向き
-            for z in six.moves.range(self.n_layers):
+            for z in range(self.n_layers):
                 lstmVars[2 * z] = cyf[z] + cyb[z]
                 lstmVars[2 * z + 1] = hyf[z] + hyb[z]
         elif self.flag_merge_encfwbw == 1:  # fwとbwを一層毎に混ぜる
             sp = (cMBSize, self.hDim)
-            for z in six.moves.range(self.n_layers):
+            for z in range(self.n_layers):
                 if z == 0:  # 一層目 embeddingを使う
                     biH = encEmbList
                 else:  # 二層目以降 前層の出力を使う
@@ -519,8 +519,7 @@ class EncoderDecoderAttention:
             encLen -= 2
         else:
             assert 0, "ERROR"
-        # (encの単語数, minibatchの数, 隠れ層の次元)
-        #    => (minibatchの数, encの単語数, 隠れ層の次元)に変更
+        # (encの単語数, minibatchの数, 隠れ層の次元) => (minibatchの数, encの単語数, 隠れ層の次元)に変更
         biHiddenStackSW01 = chaFunc.swapaxes(biHiddenStack, 0, 1)
         # 各LSTMの最終状態を取得して，decoderのLSTMの初期状態を作成
         lstmVars = chaFunc.stack(lstmVars)
@@ -547,7 +546,7 @@ class EncoderDecoderAttention:
     ############################
     def trainOneMiniBatch(self, train_mode, decSent, encInfo, args, dropout_rate):
         if args.gpu_enc != args.gpu_dec:  # encとdecが別GPUの場合
-            chainer.cuda.get_device(args.gpu_dec).use()
+            cuda.get_device_from_id(args.gpu_dec).use()
         cMBSize = encInfo.cMBSize
         aList, finalHS = self.prepareDecoder(encInfo)
 
@@ -567,7 +566,7 @@ class EncoderDecoderAttention:
         # 2, decoder側のRNN部分を計算
         h4_list_copy = [0] * decoder_proc
         lstm_states_list_copy = [0] * decoder_proc
-        for index in six.moves.range(decoder_proc):  # decoder_len -1
+        for index in range(decoder_proc):  # decoder_len -1
             if index == 0:
                 t_lstm_states = encInfo.lstmVars
                 t_finalHS = finalHS
@@ -585,7 +584,7 @@ class EncoderDecoderAttention:
             h4_list_copy[index] = finalHS
         #######################################################################
         # 3, output(softmax)層の計算
-        for index in reversed(six.moves.range(decoder_proc)):
+        for index in reversed(range(decoder_proc)):
             # 2で用意した copyを使って最終出力層の計算をする
             oVector = self.generateWord(h4_list_copy[index], encInfo.encLen, cMBSize, args, dropout_rate)
             # 正解データ
@@ -697,10 +696,7 @@ class EncoderDecoderAttention:
 
     # 出力層の計算
     def generateWord(self, h4, encLen, cMBSize, args, dropout_rate):
-        if args.chainer_version_check[0] == 2:
-            oVector = self.model.decOutputL(chaFunc.dropout(h4, ratio=dropout_rate))
-        else:
-            oVector = self.model.decOutputL(chaFunc.dropout(h4, train=args.dropout_mode, ratio=dropout_rate))
+        oVector = self.model.decOutputL(chaFunc.dropout(h4, ratio=dropout_rate))
         return oVector
 
 
@@ -774,9 +770,9 @@ class PrepareData:
 
     def makeBatch4Train(self, encSentLenDict, decSentLenDict, batch_size=1, shuffle_flag=True):
         encSentDividedBatch = []
-        for length, encSentList in six.iteritems(encSentLenDict):
+        for length, encSentList in encSentLenDict.items():
             random.shuffle(encSentList)  # ここで同じencLenのデータをshuffle
-            iter2 = six.moves.range(0, len(encSentList), batch_size)
+            iter2 = range(0, len(encSentList), batch_size)
             encSentDividedBatch.extend([encSentList[_:_ + batch_size] for _ in iter2])
         if shuffle_flag is True:
             # encLenの長さでまとめたものをシャッフルする
@@ -794,7 +790,7 @@ class PrepareData:
                 np.array([decSentLenDict[sntNum] + [-1] * (maxDecoderLength - len(decSentLenDict[sntNum]))
                           for sntNum, encSent in batch], dtype=np.int32).T)
         ######
-        return list(six.moves.zip(encSentBatch, decSentBatch))
+        return list(zip(encSentBatch, decSentBatch))
 
 
 # 主に学習時の状況を表示するための情報を保持するクラス
@@ -864,26 +860,19 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, clip_obj, st
         else:              # dev
             dropout_rate = 0
         #####################
-        if args.chainer_version_check[0] == 2:
-            if train_mode > 0:  # train
-                chainer.global_config.train = True
-                chainer.global_config.enable_backprop = True
-                sys.stderr.write('# TRAIN epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
-                                 .format(epoch, dropout_rate, chainer.global_config.__dict__))
-            else:              # dev
-                chainer.global_config.train = False
-                chainer.global_config.enable_backprop = False
-                sys.stderr.write('# DEV.  epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
-                                 .format(epoch, dropout_rate, chainer.global_config.__dict__))
-        else:
-            if train_mode > 0:  # train
-                args.dropout_mode = args.dropout_mode_orig
-            else:              # dev
-                args.dropout_mode = False
+        if train_mode > 0:  # train
+            chainer.global_config.train = True
+            chainer.global_config.enable_backprop = True
+            sys.stderr.write('# TRAIN epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
+                             .format(epoch, dropout_rate, chainer.global_config.__dict__))
+        else:              # dev
+            chainer.global_config.train = False
+            chainer.global_config.enable_backprop = False
+            sys.stderr.write('# DEV.  epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
+                             .format(epoch, dropout_rate, chainer.global_config.__dict__))
         #####################
         # メインループ
         for encSent, decSent in tData:
-            # if 1:
             try:
                 ###########################
                 if train_mode > 0:  # train
@@ -913,7 +902,7 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, clip_obj, st
                     if prnCnt == 100:
                         # TODO 処理が重いので実行回数を減らす ロが不要ならいらない
                         xp = cuda.get_array_module(encInfo.lstmVars[0].data)
-                        tInfo.pnorm = float(xp.sqrt(chainer.optimizer._sum_sqnorm(
+                        tInfo.pnorm = float(xp.sqrt(chainer.optimizer_hooks.gradient_clipping._sum_sqnorm(
                             [p.data for p in optimizer.target.params()])))
                 ####################
                 del encInfo
@@ -921,19 +910,17 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, clip_obj, st
                 tInfo.encMaxLen = max(encLen * cMBSize, tInfo.encMaxLen)
                 tInfo.decMaxLen = max(decLen * cMBSize, tInfo.decMaxLen)
                 ###################
-                if args.verbose == 0:
-                    pass  # 途中結果は表示しない
-                else:
+                if args.verbose != 0:
                     msgA = tInfo.print_strings(train_mode, epoch, cMBSize, encLen, decLen, start_time, args)
                     if train_mode > 0 and prnCnt >= 100:
                         if args.verbose > 1:
                             sys.stdout.write('\r')
-                        sys.stdout.write('%s\n' % (msgA))
+                        sys.stdout.write('%s\n' % msgA)
                         prnCnt = 0
                     elif args.verbose > 2:
-                        sys.stderr.write('\n%s' % (msgA))
+                        sys.stderr.write('\n%s' % msgA)
                     elif args.verbose > 1:
-                        sys.stderr.write('\r%s' % (msgA))
+                        sys.stderr.write('\r%s' % msgA)
                 ###################
                 prnCnt += 1
             except Exception as e:
@@ -947,7 +934,8 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, clip_obj, st
                         encLen = len(encSent)
                         decLen = len(decSent)
                         sys.stdout.write('\r# GPU Memory Error? Skip! {} | enc={} dec={} mbs={} total={} | {}\n'
-                            .format(tInfo.batchCount, encLen, decLen, cMBSize, (encLen + decLen) * cMBSize, type(e)))
+                                         .format(tInfo.batchCount, encLen, decLen, cMBSize,
+                                                 (encLen + decLen) * cMBSize, type(e)))
                         sys.stdout.flush()
                         flag = 1
                 if flag == 0:
@@ -1034,7 +1022,7 @@ def train_model(args):
     ########################################
     # 学習済みの初期モデルがあればをここで読み込む
     if args.setting_file and args.init_model_file:
-        sys.stderr.write('Load model from: [%s]\n' % (args.init_model_file))
+        sys.stderr.write('Load model from: [%s]\n' % args.init_model_file)
         chaSerial.load_npz(args.init_model_file, EncDecAtt.model)
     else:  # 学習済みの初期モデルがなければパラメタを全初期化する
         EncDecAtt.setInitAllParameters(optimizer, init_type=args.init_type, init_scale=args.init_scale)
@@ -1055,7 +1043,7 @@ def train_model(args):
     prevAccDevel = 0
     prevLossTrain = 1.0e+100
     # 学習のループ
-    for epoch in six.moves.range(args.epoch):
+    for epoch in range(args.epoch):
         ####################################
         # devの評価モード
         if args.encDevelDataFile and args.decDevelDataFile:
@@ -1137,7 +1125,7 @@ def updateBeamThreshold__2(queue, input):
         queue.append(input)
     else:
         # TODO 線形探索なのは面倒なので 効率を上げるためには要修正
-        for i in six.moves.range(len(queue)):
+        for i in range(len(queue)):
             if queue[i][0] <= input[0]:
                 continue
             tmp = queue[i]
@@ -1150,7 +1138,7 @@ def decodeByBeamFast(EncDecAtt, encSent, cMBSize, max_length, beam_size, args):
     train_mode = 0  # 評価なので
     encInfo = EncDecAtt.encodeSentenceFWD(train_mode, encSent, args, 0.0)
     if args.gpu_enc != args.gpu_dec:  # encとdecが別GPUの場合
-        chainer.cuda.get_device(args.gpu_dec).use()
+        cuda.get_device_from_id(args.gpu_dec).use()
     encLen = encInfo.encLen
     aList, finalHS = EncDecAtt.prepareDecoder(encInfo)
 
@@ -1165,7 +1153,7 @@ def decodeByBeamFast(EncDecAtt, encSent, cMBSize, max_length, beam_size, args):
     beam = [(0, [idx_bos], idx_bos, encInfo.lstmVars, finalHS, WFilter)]
     dummy_b = (1.0e+100, [idx_bos], idx_bos, None, None, WFilter)
 
-    for i in six.moves.range(max_length + 1):  # for </s>
+    for i in range(max_length + 1):  # for </s>
         newBeam = [dummy_b] * beam_size
 
         cMBSize = len(beam)
@@ -1185,7 +1173,7 @@ def decodeByBeamFast(EncDecAtt, encSent, cMBSize, max_length, beam_size, args):
         else:
             assert 0, "ERROR"
 
-        zipbeam = list(six.moves.zip(*beam))
+        zipbeam = list(zip(*beam))
         # axis=1 (defaultなので不要) ==> hstack
         lstm_states_a = chaFunc.concat(zipbeam[3])
         # concat(a, axis=0) == vstack(a)
@@ -1344,7 +1332,7 @@ def ttest_model(args):
             if args.length_normalized:
                 outputBeam = rerankingByLengthNormalizedLoss(outputBeam, wposi)
 
-            for i in six.moves.range(outloop):
+            for i in range(outloop):
                 outputList = outputBeam[i][wposi]
                 # score = outputBeam[i][0]
                 if outputList[-1] != '</s>':
@@ -1382,7 +1370,7 @@ if __name__ == "__main__":
     parser.add_argument('-N', '--num-rnn-layers', dest='n_layers', default=2, type=int,
                          help='number of RNN (LSTM) layers in both encoder/decoder [int] default=2')
     parser.add_argument('-E', '--epoch', dest='epoch', default=13, type=int, help='number of epoch [int] default=13')
-    parser.add_argument( '-B', '--batch-size', dest='batch_size', default=128, type=int,
+    parser.add_argument('-B', '--batch-size', dest='batch_size', default=128, type=int,
                          help='mini batch size [int] default=128')
     parser.add_argument('-O', '--output', dest='outputFile', default='',
                         help='name of output (model) file [string] default=(No output)')
@@ -1512,15 +1500,6 @@ if __name__ == "__main__":
     random.seed(args.seed)
     # 学習か評価か分岐
     if args.train_mode == 'train':
-        # if args.chainer_version_check[0] == 2:
-        #     chainer.global_config.train = True
-        #     chainer.global_config.enable_backprop = True
-        #     chainer.global_config.use_cudnn = "always"
-        #     chainer.global_config.type_check = True
-        #     sys.stderr.write('CHAINER CONFIG  [{}] \n'.format(chainer.global_config.__dict__))
-        # else:
-        #     args.dropout_mode_orig = True
-        #     args.dropout_mode = True
         chainer.global_config.train = True
         chainer.global_config.enable_backprop = True
         chainer.global_config.use_cudnn = "always"
@@ -1530,17 +1509,6 @@ if __name__ == "__main__":
             assert 0, "ERROR"
         train_model(args)
     elif args.train_mode == 'test':
-        # if args.chainer_version_check[0] == 2:
-        #     chainer.global_config.train = False
-        #     chainer.global_config.enable_backprop = False
-        #     chainer.global_config.use_cudnn = "always"
-        #     chainer.global_config.type_check = True
-        #     args.dropout_rate = 0.0
-        #     sys.stderr.write('CHAINER CONFIG  [{}] \n'.format(chainer.global_config.__dict__))
-        # else:
-        #     args.dropout_mode_orig = False
-        #     args.dropout_mode = False
-        #     args.dropout_rate = 0.0
         chainer.global_config.train = False
         chainer.global_config.enable_backprop = False
         chainer.global_config.use_cudnn = "always"
