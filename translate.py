@@ -5,7 +5,7 @@ import argparse
 import sys
 import random
 import time
-from io import open
+from io import open, TextIOWrapper
 import pickle
 import bottleneck as bn
 
@@ -18,6 +18,9 @@ import chainer.functions as chainF
 from data import PrepareData
 
 xp = np
+
+sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 
 def parse():
@@ -230,7 +233,7 @@ def ttest_model(args):
     begin = time.time()
     counter = 0
 
-    fout = open(args.output, 'w') if args.output else sys.stdout
+    fout = open(args.output, 'w', encoding="utf-8") if args.output else sys.stdout
 
     # TODO: codecsでないとエラーが出る環境がある？ 要調査 不要ならioにしたい
     with open(args.src, encoding='utf-8') as f:

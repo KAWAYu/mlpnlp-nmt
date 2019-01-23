@@ -3,7 +3,7 @@
 
 import argparse
 import copy
-from io import open
+from io import open, TextIOWrapper
 import numpy as np
 import math
 import sys
@@ -18,6 +18,9 @@ from chainer import optimizers, serializers
 
 from data import PrepareData
 from models import EncoderDecoderAttention
+
+sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 
 def parse():

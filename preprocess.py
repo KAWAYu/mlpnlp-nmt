@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from io import open
+from io import open, TextIOWrapper
 from collections import Counter
 import pickle
 import sys
+
+sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 
 def parse():
@@ -43,7 +46,7 @@ def simple_tokenizer(line):
 
 def word_counter(filepath, vocab_size, threshold, tokenizer=simple_tokenizer):
     c = Counter()
-    with open(filepath) as fin:
+    with open(filepath, encoding="utf-8") as fin:
         for line in fin:
             for token in tokenizer(line.strip()):
                 c[token] += 1
