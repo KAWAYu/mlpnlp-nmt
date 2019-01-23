@@ -92,7 +92,7 @@ class PrepareData:
         decSentBatch = []
         # shuffleなしの場合にencoderの長い方から順番に生成
         for batch in encSentDividedBatch[::-1]:
-            encSentBatch.append(np.array([encSent for sntNum, encSent in batch],dtype=np.int32).T)
+            encSentBatch.append(np.array([encSent for sntNum, encSent in batch], dtype=np.int32).T)
             maxDecoderLength = max([len(decSentLenDict[sntNum]) for sntNum, encSent in batch])
             decSentBatch.append(
                 np.array([decSentLenDict[sntNum] + [-1] * (maxDecoderLength - len(decSentLenDict[sntNum]))

@@ -12,6 +12,7 @@ import random
 import time
 
 import chainer
+import chainer.functions as chainF
 from chainer.backends import cuda
 from chainer import optimizers, serializers
 
@@ -42,12 +43,15 @@ def parse():
     parser.add_argument('-learning_rate_decay_rate', '-lrate_drate', default=0.5, type=float)
 
     parser.add_argument('-optimizer', '-optim', default='SGD')
-    parser.add_argument('-gradient_clipping', '-grad_clip', default=5.0, type=float)
-    parser.add_argument('-weight_decay', '-wd', default=1e-5, type=float)
+    parser.add_argument('-gradient_clipping', '-grad_clip', action="store_true")
+    parser.add_argument('-gradient_clipping_norm', '-grad_clip_n', default=5.0, type=float)
+    parser.add_argument('-weight_decay', '-wd', action="store_true")
+    parser.add_argument('-weight_decay_v', '-wdv', default=1e-6, type=float)
     parser.add_argument('-dropout_rate', '-dropr', default=0.3, type=float)
     parser.add_argument('-model', default='')
     parser.add_argument('-initializer_scale', '-init_scale', default=0.1, type=float)
     parser.add_argument('-initializer_type', '-init_type', default='uniform')
+    parser.add_argument('-truncate_length', '-trunc', default=30, type=int)
 
     parser.add_argument('-eval_frequency', '-eval_freq', default=0, type=int)
 
@@ -146,6 +150,84 @@ def setOptimizer(args, EncDecAtt):
     return optimizer
 
 
+def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
+    if args.gpu >= 0:
+        cuda.get_device_from_id(args.gpu).use()
+    cMBSize = encInfo.cMBSize
+    aList, finalHS = model.prepareDecoder(encInfo)
+
+    xp = cuda.get_array_module(encInfo.lstmVars[0].data)
+    total_loss_val = 0
+    correct = 0
+    incorrect = 0
+    proc = 0
+    decoder_proc = len(decSent) - 1
+
+    ##### ここから開始 ###############################################
+    # 1. decoder側の入力単語embeddingsをまとめて取得
+    decEmbListCopy = model.getDecoderInputEmbeddings(decSent[:decoder_proc], args)
+    decSent = xp.array(decSent)
+
+    # 2. decoder側のRNN部分を計算
+    prev_h4 = None
+    prev_lstm_states = None
+    trunc_loss = chainer.Variable(xp.zeros((), dtype=xp.float32))
+    for index in range(decoder_proc):
+        if index == 0:
+            t_lstm_states = encInfo.lstmVars
+            t_finalHS = finalHS
+        else:
+            t_lstm_states = prev_lstm_states
+            t_finalHS = prev_h4
+        # decoder LSTMを一回分計算
+        hOut, lstm_states = model.processDecLSTMOneStep(
+            decEmbListCopy[index], t_lstm_states, t_finalHS, args, args.dropout_rate
+        )
+        # lstm_statesをキャッシュ
+        prev_lstm_states = lstm_states
+        # attentionの計算
+        finalHS = model.calcAttention(hOut, encInfo.attnList, aList, encInfo.encLen, cMBSize, args)
+        # finalHSをキャッシュ
+        prev_h4 = finalHS
+
+        # 3. output(softmax)層の計算
+        # 2で用意したcopyを使って最終出力層の計算をする
+        oVector = model.generateWord(prev_h4, encInfo.encLen, cMBSize, args, args.dropout_rate)
+        # 正解データ
+        correctLabel = decSent[index + 1]
+        proc += xp.count_nonzero(correctLabel + 1)
+        # 必ずminibatchsizeでわる (???)
+        closs = chainF.softmax_cross_entropy(oVector, correctLabel, normalize=False)
+        # これで正規化なしのloss  cf. seq2seq-attn code
+        total_loss_val += closs.data * cMBSize
+        if train_mode > 0:  # 学習データのみ backward する
+            trunc_loss += closs
+            # 実際の正解数を獲得したい
+        t_correct = 0
+        t_incorrect = 0
+        # Devのときは必ず評価，学習データのときはオプションに従って評価
+        if train_mode == 0:  # or args.doEvalAcc > 0:
+            # 予測した単語のID配列 CuPy
+            pred_arr = oVector.data.argmax(axis=1)
+            # 正解と予測が同じなら0になるはず => 正解したところは0なので，全体から引く
+            t_correct = (correctLabel.size - xp.count_nonzero(correctLabel - pred_arr))
+            # 予測不要の数から正解した数を引く # +1はbroadcast
+            t_incorrect = xp.count_nonzero(correctLabel + 1) - t_correct
+        correct += t_correct
+        incorrect += t_incorrect
+        if train_mode > 0 and (index + 1) % args.truncate_length == 0:
+            trunc_loss.backward()
+            trunc_loss.unchain_backward()
+            optimizer.update()
+        ####
+    if train_mode > 0 and (index + 1) % args.truncate_length != 0:  # 学習時のみ backward する
+        model.model.cleargrads()
+        trunc_loss.backward()
+        trunc_loss.unchain_backward()
+
+    return total_loss_val, (correct, incorrect, decoder_proc, proc)
+
+
 # 学習用のサブルーチン
 def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, args):
     if 1:  # 並列処理のコードとインデントを揃えるため．．．
@@ -177,7 +259,8 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
                     EncDecAtt.model.cleargrads()  # パラメタ更新のためにgrad初期化
                 ###########################
                 encInfo = EncDecAtt.encodeSentenceFWD(train_mode, encSent, args, dropout_rate)
-                loss_stat, acc_stat = EncDecAtt.trainOneMiniBatch(train_mode, decSent, encInfo, args, dropout_rate)
+                # loss_stat, acc_stat = EncDecAtt.trainOneMiniBatch(train_mode, decSent, encInfo, args, dropout_rate)
+                loss_stat, acc_stat = decoder_processor(EncDecAtt, optimizer, train_mode, decSent, encInfo, args)
                 ###########################
                 # mini batch のiサイズは毎回違うので取得
                 cMBSize = encInfo.cMBSize
@@ -197,11 +280,11 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
                     ###########################
                     # tInfo.gnorm = clip_obj.norm_orig
                     # tInfo.gnormLimit = clip_obj.threshold
-                    if prnCnt == 100:
-                        # TODO 処理が重いので実行回数を減らす ロが不要ならいらない
-                        xp = cuda.get_array_module(encInfo.lstmVars[0].data)
-                        tInfo.pnorm = float(xp.sqrt(chainer.optimizer_hooks.gradient_clipping._sum_sqnorm(
-                            [p.data for p in optimizer.target.params()])))
+                    # if prnCnt == 100:
+                    #     # TODO 処理が重いので実行回数を減らす ロが不要ならいらない
+                    #     xp = cuda.get_array_module(encInfo.lstmVars[0].data)
+                    #     tInfo.pnorm = float(xp.sqrt(chainer.optimizer_hooks.gradient_clipping._sum_sqnorm(
+                    #         [p.data for p in optimizer.target.params()])))
                 ####################
                 del encInfo
                 ###################
@@ -276,8 +359,10 @@ def train_model(args):
     EncDecAtt.setToGPUs(args)  # ここでモデルをGPUに貼り付ける
 
     optimizer = setOptimizer(args, EncDecAtt)
-    optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
-    optimizer.add_hook(chainer.optimizer.GradientClipping(args.gradient_clipping))
+    if args.weight_decay:
+        optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay_v))
+    if args.gradient_clipping:
+        optimizer.add_hook(chainer.optimizer.GradientClipping(args.gradient_clipping_norm))
 
     ########################################
     # 学習済みの初期モデルがあればをここで読み込む

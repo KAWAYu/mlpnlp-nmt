@@ -93,22 +93,14 @@ class NStepLSTMpp(chainer.ChainList):
         self.use_cudnn = use_cudnn
         self.out_size = out_size
         self.direction = direction
-        self.ws = [[getattr(w, '%sw0' % t_name),
-                    getattr(w, '%sw1' % t_name),
-                    getattr(w, '%sw2' % t_name),
-                    getattr(w, '%sw3' % t_name),
-                    getattr(w, '%sw4' % t_name),
-                    getattr(w, '%sw5' % t_name),
-                    getattr(w, '%sw6' % t_name),
-                    getattr(w, '%sw7' % t_name)] for w in self]
-        self.bs = [[getattr(w, '%sb0' % t_name),
-                    getattr(w, '%sb1' % t_name),
-                    getattr(w, '%sb2' % t_name),
-                    getattr(w, '%sb3' % t_name),
-                    getattr(w, '%sb4' % t_name),
-                    getattr(w, '%sb5' % t_name),
-                    getattr(w, '%sb6' % t_name),
-                    getattr(w, '%sb7' % t_name)] for w in self]
+        self.ws = [[getattr(w, '%sw0' % t_name), getattr(w, '%sw1' % t_name),
+                    getattr(w, '%sw2' % t_name), getattr(w, '%sw3' % t_name),
+                    getattr(w, '%sw4' % t_name), getattr(w, '%sw5' % t_name),
+                    getattr(w, '%sw6' % t_name), getattr(w, '%sw7' % t_name)] for w in self]
+        self.bs = [[getattr(w, '%sb0' % t_name), getattr(w, '%sb1' % t_name),
+                    getattr(w, '%sb2' % t_name), getattr(w, '%sb3' % t_name),
+                    getattr(w, '%sb4' % t_name), getattr(w, '%sb5' % t_name),
+                    getattr(w, '%sb6' % t_name), getattr(w, '%sb7' % t_name)] for w in self]
 
     def init_hx(self, xs):
         hx_shape = self.n_layers * self.direction
