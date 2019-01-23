@@ -5,6 +5,7 @@ import argparse
 from io import open
 from collections import Counter
 import pickle
+import sys
 
 
 def parse():
@@ -47,7 +48,7 @@ def word_counter(filepath, vocab_size, threshold, tokenizer=simple_tokenizer):
             for token in tokenizer(line.strip()):
                 c[token] += 1
 
-    vocab = {'<unk>': 0, '<s>': 1, '</s>': 2}
+    vocab = {'<unk>': 0, '<s>': 1, '</s>': 2, '<pad>': 3}
     init_size = len(vocab)
     for k, v in c.most_common():
         if v <= threshold or len(vocab) >= vocab_size + init_size:
@@ -60,8 +61,10 @@ def word_counter(filepath, vocab_size, threshold, tokenizer=simple_tokenizer):
 def main():
     args = parse()
     args = preprocess_args(args)
-    src_vocab = word_counter(args.train_src, args.vocab_size, args.src_threshold)
-    tgt_vocab = word_counter(args.train_tgt, args.vocab_size, args.tgt_threshold)
+    src_vocab = word_counter(args.train_src, args.src_vocab_size, args.src_threshold)
+    sys.stderr.write('Source vocabulary size: %d\n' % len(src_vocab))
+    tgt_vocab = word_counter(args.train_tgt, args.tgt_vocab_size, args.tgt_threshold)
+    sys.stderr.write('Target vocabulary size: %d\n' % len(tgt_vocab))
     pickle.dump(src_vocab, open(args.save_data + '.src.vocab', 'wb'))
     pickle.dump(tgt_vocab, open(args.save_data + '.tgt.vocab', 'wb'))
 

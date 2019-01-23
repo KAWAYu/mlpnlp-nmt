@@ -275,29 +275,37 @@ class EncoderDecoderAttention:
         decSent = xp.array(decSent)  # GPU上に移動
         #######################################################################
         # 2, decoder側のRNN部分を計算
-        h4_list_copy = [0] * decoder_proc
-        lstm_states_list_copy = [0] * decoder_proc
+        # h4_list_copy = [0] * decoder_proc
+        # lstm_states_list_copy = [0] * decoder_proc
+        prev_h4 = None
+        prev_lstm_states = None
+        trunc_loss = chainer.Variable(xp.zeros((), dtype=xp.float32))
         for index in range(decoder_proc):  # decoder_len -1
             if index == 0:
                 t_lstm_states = encInfo.lstmVars
                 t_finalHS = finalHS
             else:
-                t_lstm_states = lstm_states_list_copy[index - 1]
-                t_finalHS = h4_list_copy[index - 1]
+                # t_lstm_states = lstm_states_list_copy[index - 1]
+                # t_finalHS = h4_list_copy[index - 1]
+                t_lstm_states = prev_lstm_states
+                t_finalHS = prev_h4
             # decoder LSTMを一回ぶん計算
             hOut, lstm_states = self.processDecLSTMOneStep(
                 decEmbListCopy[index], t_lstm_states, t_finalHS, args, dropout_rate)
             # lstm_statesをキャッシュ
-            lstm_states_list_copy[index] = lstm_states
+            # lstm_states_list_copy[index] = lstm_states
+            prev_lstm_states = lstm_states
             # attentionありの場合 contextベクトルを計算
             finalHS = self.calcAttention(hOut, encInfo.attnList, aList, encInfo.encLen, cMBSize, args)
             # finalHSをキャッシュ
-            h4_list_copy[index] = finalHS
+            # h4_list_copy[index] = finalHS
+            prev_h4 = finalHS
         #######################################################################
         # 3, output(softmax)層の計算
-        for index in reversed(range(decoder_proc)):
+        # for index in reversed(range(decoder_proc)):
             # 2で用意した copyを使って最終出力層の計算をする
-            oVector = self.generateWord(h4_list_copy[index], encInfo.encLen, cMBSize, args, dropout_rate)
+            # oVector = self.generateWord(h4_list_copy[index], encInfo.encLen, cMBSize, args, dropout_rate)
+            oVector = self.generateWord(prev_h4, encInfo.encLen, cMBSize, args, dropout_rate)
             # 正解データ
             correctLabel = decSent[index + 1]  # xp
             proc += (xp.count_nonzero(correctLabel + 1))
@@ -306,7 +314,8 @@ class EncoderDecoderAttention:
             # これで正規化なしのloss  cf. seq2seq-attn code
             total_loss_val += closs.data * cMBSize
             if train_mode > 0:  # 学習データのみ backward する
-                total_loss += closs
+                # total_loss += closs
+                trunc_loss += closs
             # 実際の正解数を獲得したい
             t_correct = 0
             t_incorrect = 0
@@ -314,13 +323,14 @@ class EncoderDecoderAttention:
             if train_mode == 0:  # or args.doEvalAcc > 0:
                 # 予測した単語のID配列 CuPy
                 pred_arr = oVector.data.argmax(axis=1)
-                # 正解と予測が同じなら0になるはず
-                # => 正解したところは0なので，全体から引く
+                # 正解と予測が同じなら0になるはず => 正解したところは0なので，全体から引く
                 t_correct = (correctLabel.size - xp.count_nonzero(correctLabel - pred_arr))
                 # 予測不要の数から正解した数を引く # +1はbroadcast
                 t_incorrect = xp.count_nonzero(correctLabel + 1) - t_correct
             correct += t_correct
             incorrect += t_incorrect
+            if train_mode > 0 and (index + 1) % args.truncate_length == 0:
+                trunc_loss.backward()
         ####
         if train_mode > 0:  # 学習時のみ backward する
             total_loss.backward()
