@@ -58,7 +58,6 @@ class PrepareData:
         sampleNum = 0
         maxLen = 0
         # ここで全てのデータを読み込む
-        # TODO: codecsでないとエラーが出る環境がある？ 要調査 不要ならioにしたい
         with open(fileName, encoding='utf-8') as f:
             # with codecs.open(fileName, encoding='utf-8') as f:
             for sntNum, snt in enumerate(f):  # ここで全てのデータを読み込む
