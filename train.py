@@ -132,20 +132,20 @@ def setOptimizer(args, EncDecAtt, comm):
     if args.optimizer == 'SGD':
         # optimizer = optimizers.SGD(lr=args.learning_rate)
         optimizer = chainermn.create_multi_node_optimizer(optimizers.SGD(lr=args.learning_rate), comm)
-        sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.lr))
+        # sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.lr))
     elif args.optimizer == 'Adam':
         # assert 0, "Currently Adam is not supported for asynchronous update"
         # optimizer = optimizers.Adam(alpha=args.learning_rate)
         optimizer = chainermn.create_multi_node_optimizer(optimizers.Adam(alpha=args.learning_rate), comm)
-        sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.alpha))
+        # sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.alpha))
     elif args.optimizer == 'MomentumSGD':
         # optimizer = optimizers.MomentumSGD(lr=args.learning_rate)
         optimizer = chainermn.create_multi_node_optimizer(optimizers.MomentumSGD(lr=args.learning_rate), comm)
-        sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.lr))
+        # sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.lr))
     elif args.optimizer == 'AdaDelta':
         # optimizer = optimizers.AdaDelta(rho=args.learning_rate)
         optimizer = chainermn.create_multi_node_optimizer(optimizers.AdaDelta(rho=args.learning_rate), comm)
-        sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.rho))
+        # sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.rho))
     else:
         assert 0, "ERROR"
 
@@ -237,8 +237,6 @@ def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
         trunc_loss.backward()
         trunc_loss.unchain_backward()
         optimizer.update()
-    print()
-    print("preds:", ' '.join(model.index2decoderWord[idx[0]] for idx in preds))
     return total_loss_val, (correct, incorrect, decoder_proc, proc)
 
 
@@ -257,13 +255,13 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
         if train_mode > 0:  # train
             chainer.global_config.train = True
             chainer.global_config.enable_backprop = True
-            sys.stderr.write('# TRAIN epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
-                             .format(epoch, dropout_rate, chainer.global_config.__dict__))
+            # sys.stderr.write('# TRAIN epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
+            #                 .format(epoch, dropout_rate, chainer.global_config.__dict__))
         else:              # dev
             chainer.global_config.train = False
             chainer.global_config.enable_backprop = False
-            sys.stderr.write('# DEV.  epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
-                             .format(epoch, dropout_rate, chainer.global_config.__dict__))
+            # sys.stderr.write('# DEV.  epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
+            #                 .format(epoch, dropout_rate, chainer.global_config.__dict__))
         #####################
         # メインループ
         for encSent, decSent in tData:
@@ -309,13 +307,16 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
                     msgA = tInfo.print_strings(train_mode, epoch, cMBSize, encLen, decLen, start_time, args)
                     if train_mode > 0 and prnCnt >= 100:
                         if args.verbose > 1:
-                            sys.stdout.write('\r')
-                        sys.stdout.write('%s\n' % msgA)
+                            pass
+                            # sys.stdout.write('\r')
+                        # sys.stdout.write('%s\n' % msgA)
                         prnCnt = 0
                     elif args.verbose > 2:
-                        sys.stderr.write('\n%s' % msgA)
+                        pass
+                        # sys.stderr.write('\n%s' % msgA)
                     elif args.verbose > 1:
-                        sys.stderr.write('\r%s' % msgA)
+                        pass
+                        # sys.stderr.write('\r%s' % msgA)
                 ###################
                 prnCnt += 1
             except Exception as e:
@@ -328,16 +329,16 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
                         cMBSize = len(encSent[0])
                         encLen = len(encSent)
                         decLen = len(decSent)
-                        sys.stdout.write('\r# GPU Memory Error? Skip! {} | enc={} dec={} mbs={} total={} | {}\n'
-                                         .format(tInfo.batchCount, encLen, decLen, cMBSize,
-                                                 (encLen + decLen) * cMBSize, type(e)))
-                        sys.stdout.flush()
+                        # sys.stdout.write('\r# GPU Memory Error? Skip! {} | enc={} dec={} mbs={} total={} | {}\n'
+                        #                 .format(tInfo.batchCount, encLen, decLen, cMBSize,
+                        #                         (encLen + decLen) * cMBSize, type(e)))
+                        # sys.stdout.flush()
                         flag = 1
                 if flag == 0:
-                    sys.stdout.write('\r# Fatal Error? {} | {} | {}\n'.format(tInfo.batchCount, type(e), e.args))
+                    # sys.stdout.write('\r# Fatal Error? {} | {} | {}\n'.format(tInfo.batchCount, type(e), e.args))
                     import traceback
                     traceback.print_exc()
-                    sys.stdout.flush()
+                    # sys.stdout.flush()
                     sys.exit(255)
         ###########################
         return tInfo
@@ -346,8 +347,8 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
 # 学習用の関数
 def train_model(args, comm):
     if args.setting_file:
-        sys.stdout.write('# Loading initial data  config=[%s] model=[%s] \n' %
-                         (args.setting_file, args.init_model_file))
+        # sys.stdout.write('# Loading initial data  config=[%s] model=[%s] \n' %
+        #                  (args.setting_file, args.init_model_file))
         EncDecAtt = pickle.load(open(args.setting_file, 'rb'))
         data = PrepareData(EncDecAtt)
     else:
@@ -366,9 +367,9 @@ def train_model(args, comm):
     args.embed_size = EncDecAtt.eDim  # 念の為，強制置き換え
     args.hidden_size = EncDecAtt.hDim  # 念の為，強制置き換え
 
-    sys.stdout.write('#####################\n')
-    sys.stdout.write('# [Params] {}'.format(args))
-    sys.stdout.write('#####################\n')
+    # sys.stdout.write('#####################\n')
+    # sys.stdout.write('# [Params] {}'.format(args))
+    # sys.stdout.write('#####################\n')
 
     EncDecAtt.setToGPUs(args)  # ここでモデルをGPUに貼り付ける
 
@@ -381,7 +382,7 @@ def train_model(args, comm):
     ########################################
     # 学習済みの初期モデルがあればをここで読み込む
     if args.setting_file and args.init_model_file:
-        sys.stderr.write('Load model from: [%s]\n' % args.init_model_file)
+        # sys.stderr.write('Load model from: [%s]\n' % args.init_model_file)
         serializers.load_npz(args.init_model_file, EncDecAtt.model)
     else:  # 学習済みの初期モデルがなければパラメタを全初期化する
         EncDecAtt.setInitAllParameters(optimizer, init_type=args.initializer_type, init_scale=args.initializer_scale)
@@ -406,23 +407,23 @@ def train_model(args, comm):
         if args.valid_src and args.valid_tgt:
             train_mode = 0
             begin = time.time()
-            sys.stdout.write('# Dev. data | total mini batch bucket size = {0}\n'.format(len(develData)))
+            # sys.stdout.write('# Dev. data | total mini batch bucket size = {0}\n'.format(len(develData)))
             tInfo = train_model_sub(train_mode, epoch, develData, EncDecAtt, None, begin, args)
             msgA = tInfo.print_strings(train_mode, epoch, 0, 0, 0, begin, args)
             dL = prev_loss_valid - float(tInfo.lossVal)
-            sys.stdout.write('\r# Dev.Data | %s | diff: %e\n' % (msgA, dL / max(1, tInfo.instanceNum)))
+            # sys.stdout.write('\r# Dev.Data | %s | diff: %e\n' % (msgA, dL / max(1, tInfo.instanceNum)))
             # learning rateを変更するならここ
             if args.optimizer == 'SGD':
                 if epoch >= args.learning_rate_decay_from or (epoch >= args.learning_rate_decay_from and
                                                     tInfo.lossVal > prev_loss_valid and tInfo.corTot < prev_acc_valid):
                     optimizer.lr = max(args.learning_rate * 0.01, optimizer.lr * args.learning_rate_decay_rate)
-                sys.stdout.write('SGD Learning Rate: %s  (initial: %s)\n' % (optimizer.lr, args.learning_rate))
+                # sys.stdout.write('SGD Learning Rate: %s  (initial: %s)\n' % (optimizer.lr, args.learning_rate))
             elif args.optimizer == 'Adam':
                 if epoch >= args.learning_rate_decay_from or (epoch >= args.learning_rate_decay_from and
                                                     tInfo.lossVal > prev_loss_valid and tInfo.corTot < prev_acc_valid):
                     optimizer.alpha = max(args.learning_rate * 0.01, optimizer.alpha * args.learning_rate_decay_rate)
-                sys.stdout.write('Adam Learning Rate: t=%s lr=%s ep=%s alpha=%s beta1=%s beta2=%s\n' % (
-                    optimizer.t, optimizer.lr, optimizer.epoch, optimizer.alpha, optimizer.beta1, optimizer.beta2))
+                # sys.stdout.write('Adam Learning Rate: t=%s lr=%s ep=%s alpha=%s beta1=%s beta2=%s\n' % (
+                #    optimizer.t, optimizer.lr, optimizer.epoch, optimizer.alpha, optimizer.beta1, optimizer.beta2))
             # develのlossとaccを保存
             prev_loss_valid = tInfo.lossVal
             prev_acc_valid = tInfo.corTot
@@ -442,34 +443,35 @@ def train_model(args, comm):
             trainData = data.makeBatch4Train(encSentLenDict, decSentLenDict, args.batch_size, (epoch != 0))
         else:
             assert 0, "ERROR"
-        sys.stdout.write(
-            '# Train | data shuffle | total mini batch bucket size = {0} | Time: {1:10.4f}\n'.format(
-                len(trainData), time.time() - begin))
+        # sys.stdout.write(
+        #    '# Train | data shuffle | total mini batch bucket size = {0} | Time: {1:10.4f}\n'.format(
+        #        len(trainData), time.time() - begin))
         # 学習の実体
         begin = time.time()
         tInfo = train_model_sub(train_mode, epoch, trainData, EncDecAtt, optimizer, begin, args)
         msgA = tInfo.print_strings(train_mode, epoch, 0, 0, 0, begin, args)
         dL = prev_loss_train - float(tInfo.lossVal)
-        sys.stdout.write('\r# Train END %s | diff: %e\n' % (msgA, dL / max(1, tInfo.instanceNum)))
+        # sys.stdout.write('\r# Train END %s | diff: %e\n' % (msgA, dL / max(1, tInfo.instanceNum)))
         prev_loss_train = tInfo.lossVal
         ####################################
         # モデルの保存
         if args.output_setting_file:
             if epoch + 1 == args.epoch or (args.eval_frequency != 0 and (epoch + 1) % args.eval_frequency == 0):
-                fout = args.output_setting_file + '.epoch%s' % (epoch + 1)
+                fout = args.output_setting_file + '.epoch%s.comm%d' % (epoch + 1, comm.rank)
                 try:
-                    sys.stdout.write("#output model [{}]\n".format(fout))
+                    # sys.stdout.write("#output model [{}]\n".format(fout))
                     serializers.save_npz(fout, copy.deepcopy(EncDecAtt.model).to_cpu(), compression=True)
                     # chaSerial.save_hdf5(
                     #    outputFileName, copy.deepcopy(
                     #        EncDecAtt.model).to_cpu(), compression=9)
                 except Exception as e:
+                    pass
                     # メモリエラーなどが発生しても処理を終了せずに
                     # そのサンプルをスキップして次に進める
-                    sys.stdout.write('\r# SAVE Error? Skip! {} | {}\n'.format(fout, type(e)))
-                    sys.stdout.flush()
+                    # sys.stdout.write('\r# SAVE Error? Skip! {} | {}\n'.format(fout, type(e)))
+                    # sys.stdout.flush()
     ####################################
-    sys.stdout.write('Done\n')
+    # sys.stdout.write('Done\n')
 
 
 def main():
@@ -480,15 +482,15 @@ def main():
         comm = chainermn.create_communicator('pure_nccl')
         device = comm.intra_rank
         cuda.get_device_from_id(device).use()
-        # sys.stderr.write('w/  using GPU [%d] \n' % args.gpu)
-        sys.stderr.write('w/ chainerMN')
+        # # sys.stderr.write('w/  using GPU [%d] \n' % args.gpu)
+        # sys.stderr.write('w/ chainerMN')
     else:
         import numpy as xp
         args.gpu = -1
-        sys.stderr.write('w/o using GPU')
+        # sys.stderr.write('w/o using GPU')
 
     # 乱数の初期値の設定
-    sys.stderr.write('# random seed [%d] \n' % args.seed)
+    # sys.stderr.write('# random seed [%d] \n' % args.seed)
     np.random.seed(args.seed)
     xp.random.seed(args.seed)
     random.seed(args.seed)
@@ -497,9 +499,10 @@ def main():
     chainer.global_config.enable_backprop = True
     chainer.global_config.use_cudnn = "always"
     chainer.global_config.type_check = True
-    sys.stderr.write('CHAINER CONFIG  [{}] \n'.format(chainer.global_config.__dict__))
+    # sys.stderr.write('CHAINER CONFIG  [{}] \n'.format(chainer.global_config.__dict__))
     if args.dropout_rate >= 1.0 or args.dropout_rate < 0.0:
-        sys.stderr.write('Warning: dropout rate is invalid!\nDropout rate is forcibly set 1.0')
+        pass
+        # sys.stderr.write('Warning: dropout rate is invalid!\nDropout rate is forcibly set 1.0')
     train_model(args, comm)
 
 
