@@ -16,6 +16,8 @@ import chainer.functions as chainF
 from chainer.backends import cuda
 from chainer import optimizers, serializers
 
+import chainermn
+
 from data import PrepareData
 from models import EncoderDecoderAttention
 
@@ -125,20 +127,24 @@ class TrainProcInfo:
 
 
 # optimizerの準備
-def setOptimizer(args, EncDecAtt):
+def setOptimizer(args, EncDecAtt, comm):
     # optimizerを構築
     if args.optimizer == 'SGD':
-        optimizer = optimizers.SGD(lr=args.learning_rate)
+        # optimizer = optimizers.SGD(lr=args.learning_rate)
+        optimizer = chainermn.create_multi_node_optimizer(optimizers.SGD(lr=args.learning_rate), comm)
         sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.lr))
     elif args.optimizer == 'Adam':
         # assert 0, "Currently Adam is not supported for asynchronous update"
-        optimizer = optimizers.Adam(alpha=args.learning_rate)
+        # optimizer = optimizers.Adam(alpha=args.learning_rate)
+        optimizer = chainermn.create_multi_node_optimizer(optimizers.Adam(alpha=args.learning_rate), comm)
         sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.alpha))
     elif args.optimizer == 'MomentumSGD':
-        optimizer = optimizers.MomentumSGD(lr=args.learning_rate)
+        # optimizer = optimizers.MomentumSGD(lr=args.learning_rate)
+        optimizer = chainermn.create_multi_node_optimizer(optimizers.MomentumSGD(lr=args.learning_rate), comm)
         sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.lr))
     elif args.optimizer == 'AdaDelta':
-        optimizer = optimizers.AdaDelta(rho=args.learning_rate)
+        # optimizer = optimizers.AdaDelta(rho=args.learning_rate)
+        optimizer = chainermn.create_multi_node_optimizer(optimizers.AdaDelta(rho=args.learning_rate), comm)
         sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.rho))
     else:
         assert 0, "ERROR"
@@ -152,7 +158,9 @@ def setOptimizer(args, EncDecAtt):
 
 def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
     if args.gpu >= 0:
-        cuda.get_device_from_id(args.gpu).use()
+        comm = chainermn.create_communicator('pure_nccl')
+        device = comm.intra_rank
+        cuda.get_device_from_id(device).use()
     cMBSize = encInfo.cMBSize
     aList, finalHS = model.prepareDecoder(encInfo)
 
@@ -336,7 +344,7 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
 
 
 # 学習用の関数
-def train_model(args):
+def train_model(args, comm):
     if args.setting_file:
         sys.stdout.write('# Loading initial data  config=[%s] model=[%s] \n' %
                          (args.setting_file, args.init_model_file))
@@ -364,7 +372,7 @@ def train_model(args):
 
     EncDecAtt.setToGPUs(args)  # ここでモデルをGPUに貼り付ける
 
-    optimizer = setOptimizer(args, EncDecAtt)
+    optimizer = setOptimizer(args, EncDecAtt, comm)
     if args.weight_decay:
         optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay_v))
     if args.gradient_clipping:
@@ -469,8 +477,11 @@ def main():
     if args.gpu >= 0:
         import cupy as xp
         cuda.check_cuda_available()
-        cuda.get_device_from_id(args.gpu).use()
-        sys.stderr.write('w/  using GPU [%d] \n' % args.gpu)
+        comm = chainermn.create_communicator('pure_nccl')
+        device = comm.intra_rank
+        cuda.get_device_from_id(device).use()
+        # sys.stderr.write('w/  using GPU [%d] \n' % args.gpu)
+        sys.stderr.write('w/ chainerMN')
     else:
         import numpy as xp
         args.gpu = -1
@@ -489,7 +500,7 @@ def main():
     sys.stderr.write('CHAINER CONFIG  [{}] \n'.format(chainer.global_config.__dict__))
     if args.dropout_rate >= 1.0 or args.dropout_rate < 0.0:
         sys.stderr.write('Warning: dropout rate is invalid!\nDropout rate is forcibly set 1.0')
-    train_model(args)
+    train_model(args, comm)
 
 
 if __name__ == '__main__':
