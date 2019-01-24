@@ -162,6 +162,7 @@ def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
     incorrect = 0
     proc = 0
     decoder_proc = len(decSent) - 1
+    print("decSent:", ' '.join(model.index2decoderWord[idx[0]] for idx in decSent if idx[0] != -1))
 
     ##### ここから開始 ###############################################
     # 1. decoder側の入力単語embeddingsをまとめて取得
@@ -172,6 +173,7 @@ def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
     prev_h4 = None
     prev_lstm_states = None
     trunc_loss = chainer.Variable(xp.zeros((), dtype=xp.float32))
+    preds = []
     for index in range(decoder_proc):
         if index == 0:
             t_lstm_states = encInfo.lstmVars
@@ -206,9 +208,10 @@ def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
         t_correct = 0
         t_incorrect = 0
         # Devのときは必ず評価，学習データのときはオプションに従って評価
-        if train_mode == 0:  # or args.doEvalAcc > 0:
+        if train_mode >= 0:  # or args.doEvalAcc > 0:
             # 予測した単語のID配列 CuPy
             pred_arr = oVector.data.argmax(axis=1)
+            preds.append(pred_arr)
             # 正解と予測が同じなら0になるはず => 正解したところは0なので，全体から引く
             t_correct = (correctLabel.size - xp.count_nonzero(correctLabel - pred_arr))
             # 予測不要の数から正解した数を引く # +1はbroadcast
@@ -216,6 +219,7 @@ def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
         correct += t_correct
         incorrect += t_incorrect
         if train_mode > 0 and (index + 1) % args.truncate_length == 0:
+            model.clearglads()
             trunc_loss.backward()
             trunc_loss.unchain_backward()
             optimizer.update()
@@ -224,7 +228,9 @@ def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
         model.model.cleargrads()
         trunc_loss.backward()
         trunc_loss.unchain_backward()
-
+        optimizer.update()
+    print()
+    print("preds:", ' '.join(model.index2decoderWord[idx[0]] for idx in preds))
     return total_loss_val, (correct, incorrect, decoder_proc, proc)
 
 
@@ -275,8 +281,8 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
                 # 強制的にGPUからCPUに値を移すため floatを利用
                 tInfo.lossVal += float(loss_stat)
                 ###########################
-                if train_mode > 0:
-                    optimizer.update()  # ここでパラメタ更新
+                # if train_mode > 0:
+                #     optimizer.update()  # ここでパラメタ更新
                     ###########################
                     # tInfo.gnorm = clip_obj.norm_orig
                     # tInfo.gnormLimit = clip_obj.threshold
