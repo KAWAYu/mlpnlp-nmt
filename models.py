@@ -150,9 +150,9 @@ class EncoderDecoderAttention:
             sys.stdout.write('### {} {} {} {} {}\n'.format(p.name, p.data.ndim, p.data.shape, p.data.size, t_norm))
             total_norm += t_norm
             total_param += p.data.size
-        with cuda.get_device(total_norm):
-            sys.stdout.write('# param size= [{}] norm = [{}] scale=[{}, {}]\n'.format(
-                total_param, self.model.xp.sqrt(total_norm), init_type, init_scale))
+        # with cuda.get_device(total_norm):
+        #     sys.stdout.write('# param size= [{}] norm = [{}] scale=[{}, {}]\n'.format(
+        #         total_param, self.model.xp.sqrt(total_norm), init_type, init_scale))
 
     ###############################################
     # 情報を保持するためだけのクラス 主に 細切れにbackwardするための用途
@@ -258,11 +258,11 @@ class EncoderDecoderAttention:
         return aList, finalHS
 
     ############################
-    def trainOneMiniBatch(self, train_mode, decSent, encInfo, args, dropout_rate):
-        if args.gpu >= 0:
-            comm = chainermn.create_communicator('pure_nccl')
-            device = comm.intra_rank
-            cuda.get_device_from_id(device).use()
+    def trainOneMiniBatch(self, train_mode, decSent, encInfo, args, dropout_rate,comm):
+        # if args.gpu >= 0:
+        #     comm = chainermn.create_communicator('pure_nccl')
+        #     device = comm.intra_rank
+        #     cuda.get_device_from_id(device).use()
         cMBSize = encInfo.cMBSize
         aList, finalHS = self.prepareDecoder(encInfo)
 

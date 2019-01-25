@@ -21,6 +21,15 @@ import chainermn
 from data import PrepareData
 from models import EncoderDecoderAttention
 
+comm = None
+
+
+def create_communicator():
+    global comm
+    comm = chainermn.create_communicator('pure_nccl')
+    device = comm.intra_rank
+    cuda.get_device_from_id(device).use()
+
 
 def parse():
     parser = argparse.ArgumentParser()
@@ -127,7 +136,8 @@ class TrainProcInfo:
 
 
 # optimizerの準備
-def setOptimizer(args, EncDecAtt, comm):
+def setOptimizer(args, EncDecAtt):
+    global comm
     # optimizerを構築
     if args.optimizer == 'SGD':
         optimizer = chainermn.create_multi_node_optimizer(optimizers.SGD(lr=args.learning_rate), comm)
@@ -153,10 +163,11 @@ def setOptimizer(args, EncDecAtt, comm):
 
 
 def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
-    if args.gpu >= 0:
-        comm = chainermn.create_communicator('pure_nccl')
-        device = comm.intra_rank
-        cuda.get_device_from_id(device).use()
+    global comm
+    # if args.gpu >= 0:
+    #     comm = chainermn.create_communicator('pure_nccl')
+    #     device = comm.intra_rank
+    #     cuda.get_device_from_id(device).use()
     cMBSize = encInfo.cMBSize
     aList, finalHS = model.prepareDecoder(encInfo)
 
@@ -267,7 +278,7 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
                     EncDecAtt.model.cleargrads()  # パラメタ更新のためにgrad初期化
                 ###########################
                 encInfo = EncDecAtt.encodeSentenceFWD(train_mode, encSent, args, dropout_rate)
-                # loss_stat, acc_stat = EncDecAtt.trainOneMiniBatch(train_mode, decSent, encInfo, args, dropout_rate)
+                # loss_stat, acc_stat = EncDecAtt.trainOneMiniBatch(train_mode, decSent, encInfo, args, dropout_rate, comm)
                 loss_stat, acc_stat = decoder_processor(EncDecAtt, optimizer, train_mode, decSent, encInfo, args)
                 ###########################
                 # mini batch のiサイズは毎回違うので取得
@@ -341,7 +352,8 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
 
 
 # 学習用の関数
-def train_model(args, comm):
+def train_model(args):
+    global comm
     if args.setting_file:
         # sys.stdout.write('# Loading initial data  config=[%s] model=[%s] \n' %
         #                  (args.setting_file, args.init_model_file))
@@ -369,7 +381,7 @@ def train_model(args, comm):
 
     # EncDecAtt.setToGPUs(args)  # ここでモデルをGPUに貼り付ける
 
-    optimizer = setOptimizer(args, EncDecAtt, comm)
+    optimizer = setOptimizer(args, EncDecAtt)
     if args.weight_decay:
         optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay_v))
     if args.gradient_clipping:
@@ -475,9 +487,7 @@ def main():
     if args.gpu >= 0:
         import cupy as xp
         cuda.check_cuda_available()
-        comm = chainermn.create_communicator('pure_nccl')
-        device = comm.intra_rank
-        cuda.get_device_from_id(device).use()
+        create_communicator()
         # sys.stderr.write('w/  using GPU [%d] \n' % args.gpu)
         # sys.stderr.write('w/ chainerMN')
     else:
@@ -499,7 +509,7 @@ def main():
     if args.dropout_rate >= 1.0 or args.dropout_rate < 0.0:
         pass
         # sys.stderr.write('Warning: dropout rate is invalid!\nDropout rate is forcibly set 1.0')
-    train_model(args, comm)
+    train_model(args)
 
 
 if __name__ == '__main__':
