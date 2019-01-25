@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import numpy as np
-
 import chainer
 import chainer.links as chainL
 import chainer.functions as chainF
 from chainer.backends import cuda
+
+np = cuda.cupy
 
 
 # LSTMの層の数を変数で決定したいので，層数が可変なことをこのクラスで吸収する
@@ -82,8 +82,9 @@ class NStepLSTMpp(chainer.ChainList):
                     weight.add_param('%sw%d' % (t_name, j), (out_size, w_in))
                     weight.add_param('%sb%d' % (t_name, j), (out_size,))
                     getattr(weight, '%sw%d' %
-                            (t_name, j)).data[...] = np.random.normal(0, np.sqrt(1. / w_in), (out_size, w_in))
-                    getattr(weight, '%sb%d' % (t_name, j)).data[...] = 0
+                            (t_name, j)).data = np.random.normal(0, np.sqrt(1. / w_in), (out_size, w_in), dtype=np.float32)
+                    getattr(weight, '%sb%d' % (t_name, j)).data = np.zeros((out_size, ), dtype=np.float32)
+                weight.to_gpu()
                 weights.append(weight)
 
         super(NStepLSTMpp, self).__init__(*weights)
@@ -105,7 +106,7 @@ class NStepLSTMpp(chainer.ChainList):
     def init_hx(self, xs):
         hx_shape = self.n_layers * self.direction
         with cuda.get_device_from_id(self._device_id):
-            hx = chainer.Variable(self.xp.zeros((hx_shape, xs.data.shape[1], self.out_size), dtype=xs.dtype))
+            hx = chainer.Variable(xs.xp.zeros((hx_shape, xs.data.shape[1], self.out_size), dtype=xs.dtype))
         return hx
 
     def __call__(self, hx, cx, xs, flag_train, args):

@@ -120,17 +120,17 @@ class EncoderDecoderAttention:
 
         if init_type == "uniform":
             sys.stdout.write("# initializer is [uniform] [%f]\n" % init_scale)
-            t_initializer = chainer.initializers.Uniform(init_scale)
             named_params = sorted(optimizer.target.namedparams(), key=lambda x: x[0])
             for n, p in named_params:
                 with cuda.get_device(p.data):
+                    t_initializer = chainer.initializers.Uniform(init_scale, p.dtype)
                     p.copydata(chainer.Parameter(t_initializer, p.data.shape))
         elif init_type == "normal":
             sys.stdout.write("# initializer is [normal] [%f]\n" % init_scale)
-            t_initializer = chainer.initializers.Normal(init_scale)
             named_params = sorted(optimizer.target.namedparams(), key=lambda x: x[0])
             for n, p in named_params:
                 with cuda.get_device(p.data):
+                    t_initializer = chainer.initializers.Normal(init_scale, p.dtype)
                     p.copydata(chainer.Parameter(t_initializer, p.data.shape))
         else:  # "default"
             sys.stdout.write("# initializer is [defalit] [%f]\n" % init_scale)

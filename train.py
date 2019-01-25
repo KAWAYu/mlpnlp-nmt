@@ -354,7 +354,7 @@ def train_model(args, comm):
         EncDecAtt = EncoderDecoderAttention(encoderVocab, decoderVocab, args)
 
     if args.output_setting_file:
-        fout = open(args.output_setting_file + '.setting', 'wb')
+        fout = open(args.output_setting_file + '.setting.comm%d' % comm.rank, 'wb')
         pickle.dump(EncDecAtt, fout)
         fout.close()
 
@@ -367,7 +367,7 @@ def train_model(args, comm):
     # sys.stdout.write('# [Params] {}'.format(args))
     # sys.stdout.write('#####################\n')
 
-    EncDecAtt.setToGPUs(args)  # ここでモデルをGPUに貼り付ける
+    # EncDecAtt.setToGPUs(args)  # ここでモデルをGPUに貼り付ける
 
     optimizer = setOptimizer(args, EncDecAtt, comm)
     if args.weight_decay:
