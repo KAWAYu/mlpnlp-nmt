@@ -379,7 +379,7 @@ def train_model(args):
     # sys.stdout.write('# [Params] {}'.format(args))
     # sys.stdout.write('#####################\n')
 
-    # EncDecAtt.setToGPUs(args)  # ここでモデルをGPUに貼り付ける
+    EncDecAtt.setToGPUs(args)  # ここでモデルをGPUに貼り付ける
 
     optimizer = setOptimizer(args, EncDecAtt)
     if args.weight_decay:
