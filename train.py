@@ -177,7 +177,7 @@ def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
     incorrect = 0
     proc = 0
     decoder_proc = len(decSent) - 1
-    print("decSent:", ' '.join(model.index2decoderWord[idx[0]] for idx in decSent if idx[0] != -1))
+    # print("decSent:", ' '.join(model.index2decoderWord[idx[0]] for idx in decSent if idx[0] != -1))
 
     ##### ここから開始 ###############################################
     # 1. decoder側の入力単語embeddingsをまとめて取得
@@ -262,13 +262,13 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
         if train_mode > 0:  # train
             chainer.global_config.train = True
             chainer.global_config.enable_backprop = True
-            # sys.stderr.write('# TRAIN epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
-            #                 .format(epoch, dropout_rate, chainer.global_config.__dict__))
+            sys.stderr.write('# TRAIN epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
+                             .format(epoch, dropout_rate, chainer.global_config.__dict__))
         else:              # dev
             chainer.global_config.train = False
             chainer.global_config.enable_backprop = False
-            # sys.stderr.write('# DEV.  epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
-            #                 .format(epoch, dropout_rate, chainer.global_config.__dict__))
+            sys.stderr.write('# DEV.  epoch {} drop rate={} | CHAINER CONFIG  [{}] \n'
+                             .format(epoch, dropout_rate, chainer.global_config.__dict__))
         #####################
         # メインループ
         for encSent, decSent in tData:
@@ -415,23 +415,23 @@ def train_model(args):
         if args.valid_src and args.valid_tgt:
             train_mode = 0
             begin = time.time()
-            # sys.stdout.write('# Dev. data | total mini batch bucket size = {0}\n'.format(len(develData)))
+            sys.stdout.write('# Dev. data | total mini batch bucket size = {0}\n'.format(len(develData)))
             tInfo = train_model_sub(train_mode, epoch, develData, EncDecAtt, None, begin, comm, args)
             msgA = tInfo.print_strings(train_mode, epoch, 0, 0, 0, begin, args)
             dL = prev_loss_valid - float(tInfo.lossVal)
-            # sys.stdout.write('\r# Dev.Data | %s | diff: %e\n' % (msgA, dL / max(1, tInfo.instanceNum)))
+            sys.stdout.write('\r# Dev.Data | %s | diff: %e\n' % (msgA, dL / max(1, tInfo.instanceNum)))
             # learning rateを変更するならここ
             if args.optimizer == 'SGD':
                 if epoch >= args.learning_rate_decay_from or (epoch >= args.learning_rate_decay_from and
                                                     tInfo.lossVal > prev_loss_valid and tInfo.corTot < prev_acc_valid):
                     optimizer.lr = max(args.learning_rate * 0.01, optimizer.lr * args.learning_rate_decay_rate)
-                # sys.stdout.write('SGD Learning Rate: %s  (initial: %s)\n' % (optimizer.lr, args.learning_rate))
+                sys.stdout.write('SGD Learning Rate: %s  (initial: %s)\n' % (optimizer.lr, args.learning_rate))
             elif args.optimizer == 'Adam':
                 if epoch >= args.learning_rate_decay_from or (epoch >= args.learning_rate_decay_from and
                                                     tInfo.lossVal > prev_loss_valid and tInfo.corTot < prev_acc_valid):
                     optimizer.alpha = max(args.learning_rate * 0.01, optimizer.alpha * args.learning_rate_decay_rate)
-                # sys.stdout.write('Adam Learning Rate: t=%s lr=%s ep=%s alpha=%s beta1=%s beta2=%s\n' % (
-                #    optimizer.t, optimizer.lr, optimizer.epoch, optimizer.alpha, optimizer.beta1, optimizer.beta2))
+                sys.stdout.write('Adam Learning Rate: t=%s lr=%s ep=%s alpha=%s beta1=%s beta2=%s\n' % (
+                   optimizer.t, optimizer.lr, optimizer.epoch, optimizer.alpha, optimizer.beta1, optimizer.beta2))
             # develのlossとaccを保存
             prev_loss_valid = tInfo.lossVal
             prev_acc_valid = tInfo.corTot
@@ -451,15 +451,15 @@ def train_model(args):
             trainData = data.makeBatch4Train(encSentLenDict, decSentLenDict, args.batch_size, (epoch != 0))
         else:
             assert 0, "ERROR"
-        # sys.stdout.write(
-        #    '# Train | data shuffle | total mini batch bucket size = {0} | Time: {1:10.4f}\n'.format(
-        #        len(trainData), time.time() - begin))
+        sys.stdout.write(
+           '# Train | data shuffle | total mini batch bucket size = {0} | Time: {1:10.4f}\n'.format(
+               len(trainData), time.time() - begin))
         # 学習の実体
         begin = time.time()
         tInfo = train_model_sub(train_mode, epoch, trainData, EncDecAtt, optimizer, begin, comm, args)
         msgA = tInfo.print_strings(train_mode, epoch, 0, 0, 0, begin, args)
         dL = prev_loss_train - float(tInfo.lossVal)
-        # sys.stdout.write('\r# Train END %s | diff: %e\n' % (msgA, dL / max(1, tInfo.instanceNum)))
+        sys.stdout.write('\r# Train END %s | diff: %e\n' % (msgA, dL / max(1, tInfo.instanceNum)))
         prev_loss_train = tInfo.lossVal
         ####################################
         # モデルの保存
@@ -467,7 +467,7 @@ def train_model(args):
             if epoch + 1 == args.epoch or (args.eval_frequency != 0 and (epoch + 1) % args.eval_frequency == 0):
                 fout = args.output_setting_file + '.epoch%s.comm%d' % (epoch + 1, comm.rank)
                 try:
-                    # sys.stdout.write("#output model [{}]\n".format(fout))
+                    sys.stdout.write("#output model [{}]\n".format(fout))
                     serializers.save_npz(fout, copy.deepcopy(EncDecAtt.model).to_cpu(), compression=True)
                     # chaSerial.save_hdf5(
                     #    outputFileName, copy.deepcopy(
@@ -489,7 +489,7 @@ def main():
         cuda.check_cuda_available()
         create_communicator()
         # sys.stderr.write('w/  using GPU [%d] \n' % args.gpu)
-        # sys.stderr.write('w/ chainerMN')
+        sys.stderr.write('w/ chainerMN')
     else:
         import numpy as xp
         args.gpu = -1
