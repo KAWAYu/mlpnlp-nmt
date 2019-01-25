@@ -176,7 +176,9 @@ class EncoderDecoderAttention:
     def getEncoderInputEmbeddings(self, input_idx_list, args):
         # 一文一括でembeddingを取得  この方が効率が良い？
         if args.gpu >= 0:
-            encEmbList = self.model.encoderEmbed(chainer.Variable(input_idx_list))
+            input_idx_variable = chainer.Variable(input_idx_list)
+            input_idx_variable.to_gpu()
+            encEmbList = self.model.encoderEmbed(input_idx_variable)
             encEmbList.to_gpu()
         else:
             xp = cuda.get_array_module(self.model.encoderEmbed.W.data)
@@ -186,7 +188,9 @@ class EncoderDecoderAttention:
     # decoderのembeddingを取得する関数 上のgetEncoderInputEmbeddingsとほぼ同じ
     def getDecoderInputEmbeddings(self, input_idx_list, args):
         if args.gpu >= 0:
-            decEmbList = self.model.decoderEmbed(chainer.Variable(input_idx_list))
+            input_idx_variable = chainer.Variable(input_idx_list)
+            input_idx_variable.to_gpu()
+            decEmbList = self.model.decoderEmbed(input_idx_variable)
             decEmbList.to_gpu()
         else:
             xp = cuda.get_array_module(self.model.decoderEmbed.W.data)
