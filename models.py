@@ -92,33 +92,34 @@ class EncoderDecoderAttention:
     # ネットワークの各構成要素をGPUのメモリに配置
     def setToGPUs(self, args):
         if args.gpu >= 0:
-            self.model.encoderEmbed.to_gpu()
-            self.model.decoderEmbed.to_gpu()
-            # sys.stderr.write('# Working on GPUs [gpu=%d]\n' % args.gpu)
-            # if not args.flag_emb_cpu:  # 指定があればCPU側のメモリ上に置く
-            #     self.model.encoderEmbed.to_gpu(args.gpu_enc)
-            # self.model.encLSTM_f.to_gpu(args.gpu)
-            self.model.encLSTM_f.to_gpu()
-            # self.model.encLSTM_b.to_gpu(args.gpu)
-            self.model.encLSTM_b.to_gpu()
-
-            # if not args.flag_emb_cpu:  # 指定があればCPU側のメモリ上に置く
-            #     self.model.decoderEmbed.to_gpu(args.gpu_dec)
-            # self.model.decLSTM.to_gpu(args.gpu)
-            self.model.decLSTM.to_gpu()
-            # self.model.decOutputL.to_gpu(args.gpu)
-            self.model.decOutputL.to_gpu()
-
-            if self.attn_mode > 0:
-                self.model.attnIn_L1.to_gpu()
-                # self.model.attnIn_L1.to_gpu(args.gpu)
-                # self.model.attnOut_L2.to_gpu(args.gpu)
-                self.model.attnOut_L2.to_gpu()
-            if self.attn_mode == 2:
-                # self.model.attnSum.to_gpu(args.gpu)
-                self.model.attnSum.to_gpu()
-                self.model.attnM.to_gpu()
-                # self.model.attnM.to_gpu(args.gpu)
+            # self.model.encoderEmbed.to_gpu()
+            # self.model.decoderEmbed.to_gpu()
+            # # sys.stderr.write('# Working on GPUs [gpu=%d]\n' % args.gpu)
+            # # if not args.flag_emb_cpu:  # 指定があればCPU側のメモリ上に置く
+            # #     self.model.encoderEmbed.to_gpu(args.gpu_enc)
+            # # self.model.encLSTM_f.to_gpu(args.gpu)
+            # self.model.encLSTM_f.to_gpu()
+            # # self.model.encLSTM_b.to_gpu(args.gpu)
+            # self.model.encLSTM_b.to_gpu()
+            #
+            # # if not args.flag_emb_cpu:  # 指定があればCPU側のメモリ上に置く
+            # #     self.model.decoderEmbed.to_gpu(args.gpu_dec)
+            # # self.model.decLSTM.to_gpu(args.gpu)
+            # self.model.decLSTM.to_gpu()
+            # # self.model.decOutputL.to_gpu(args.gpu)
+            # self.model.decOutputL.to_gpu()
+            #
+            # if self.attn_mode > 0:
+            #     self.model.attnIn_L1.to_gpu()
+            #     # self.model.attnIn_L1.to_gpu(args.gpu)
+            #     # self.model.attnOut_L2.to_gpu(args.gpu)
+            #     self.model.attnOut_L2.to_gpu()
+            # if self.attn_mode == 2:
+            #     # self.model.attnSum.to_gpu(args.gpu)
+            #     self.model.attnSum.to_gpu()
+            #     self.model.attnM.to_gpu()
+            #     # self.model.attnM.to_gpu(args.gpu)
+            self.model.to_gpu()
         else:
             sys.stderr.write('# NO GPUs [gpu=%d]\n' % args.gpu)
 
