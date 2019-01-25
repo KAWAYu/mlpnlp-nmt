@@ -398,11 +398,11 @@ def train_model(args):
     encSentLenDict = data.makeSentenceLenDict(args.train_src, EncDecAtt.encoderVocab, input_side=True)
     decSentLenDict = data.makeSentenceLenDict(args.train_tgt, EncDecAtt.decoderVocab, input_side=False)
     if args.mode_data_shuffle == 0:  # default
-        trainData = data.makeBatch4Train(encSentLenDict, decSentLenDict, args.batch_size, shuffle_flag=True)
+        trainData = data.makeBatch4Train(comm, encSentLenDict, decSentLenDict, args.batch_size, shuffle_flag=True)
     if args.valid_src and args.valid_tgt:
         encSentLenDictDevel = data.makeSentenceLenDict(args.valid_src, EncDecAtt.encoderVocab, input_side=True)
         decSentLenDictDevel = data.makeSentenceLenDict(args.valid_tgt, EncDecAtt.decoderVocab, input_side=False)
-        develData = data.makeBatch4Train(encSentLenDictDevel, decSentLenDictDevel, args.batch_size, shuffle_flag=False)
+        develData = data.makeBatch4Train(comm, encSentLenDictDevel, decSentLenDictDevel, args.batch_size, shuffle_flag=False)
 
     prev_loss_valid = 1.0e+100
     prev_acc_valid = 0
@@ -445,10 +445,10 @@ def train_model(args):
             # encLenの長さでまとめたものをシャッフルする
             random.shuffle(trainData)
         elif args.mode_data_shuffle == 1:  # minibatchも含めてshuffle
-            trainData = data.makeBatch4Train(encSentLenDict, decSentLenDict, args.batch_size, True)
+            trainData = data.makeBatch4Train(comm, encSentLenDict, decSentLenDict, args.batch_size, True)
         # minibatchも含めてshuffle + 最初のiterationは長さ順 (debug用途)
         elif args.mode_data_shuffle == 2:
-            trainData = data.makeBatch4Train(encSentLenDict, decSentLenDict, args.batch_size, (epoch != 0))
+            trainData = data.makeBatch4Train(comm, encSentLenDict, decSentLenDict, args.batch_size, (epoch != 0))
         else:
             assert 0, "ERROR"
         # sys.stdout.write(
