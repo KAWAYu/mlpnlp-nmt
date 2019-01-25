@@ -456,7 +456,7 @@ def train_model(args):
         #        len(trainData), time.time() - begin))
         # 学習の実体
         begin = time.time()
-        tInfo = train_model_sub(train_mode, epoch, trainData, EncDecAtt, optimizer, begin, args)
+        tInfo = train_model_sub(train_mode, epoch, trainData, EncDecAtt, optimizer, begin, comm, args)
         msgA = tInfo.print_strings(train_mode, epoch, 0, 0, 0, begin, args)
         dL = prev_loss_train - float(tInfo.lossVal)
         # sys.stdout.write('\r# Train END %s | diff: %e\n' % (msgA, dL / max(1, tInfo.instanceNum)))
