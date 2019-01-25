@@ -168,7 +168,7 @@ class EncoderDecoderAttention:
     def getEncoderInputEmbeddings(self, input_idx_list, args):
         # 一文一括でembeddingを取得  この方が効率が良い？
         if args.gpu >= 0:
-            encEmbList = chainF.copy(self.model.encoderEmbed(chainer.Variable(input_idx_list)), args.gpu)
+            encEmbList = self.model.encoderEmbed(chainer.Variable(input_idx_list)).to_gpu()
         else:
             xp = cuda.get_array_module(self.model.encoderEmbed.W.data)
             encEmbList = self.model.encoderEmbed(chainer.Variable(xp.array(input_idx_list)))
@@ -177,18 +177,18 @@ class EncoderDecoderAttention:
     # decoderのembeddingを取得する関数 上のgetEncoderInputEmbeddingsとほぼ同じ
     def getDecoderInputEmbeddings(self, input_idx_list, args):
         if args.gpu >= 0:
-            decEmbList = chainF.copy(self.model.decoderEmbed(chainer.Variable(input_idx_list)), args.gpu)
+            decEmbList = self.model.decoderEmbed(chainer.Variable(input_idx_list)).to_gpu()
         else:
             xp = cuda.get_array_module(self.model.decoderEmbed.W.data)
             decEmbList = self.model.decoderEmbed(chainer.Variable(xp.array(input_idx_list)))
         return decEmbList
 
     # encoder側の入力を処理する関数
-    def encodeSentenceFWD(self, train_mode, sentence, args, dropout_rate):
-        if args.gpu >= 0:
-            comm = chainermn.create_communicator('pure_nccl')
-            device = comm.intra_rank
-            cuda.get_device_from_id(device).use()
+    def encodeSentenceFWD(self, train_mode, sentence, args, dropout_rate, comm):
+        # if args.gpu >= 0:
+        #     comm = chainermn.create_communicator('pure_nccl')
+        #     device = comm.intra_rank
+        #     cuda.get_device_from_id(device).use()
         encLen = len(sentence)  # 文長
         cMBSize = len(sentence[0])  # minibatch size
 

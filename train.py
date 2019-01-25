@@ -248,7 +248,7 @@ def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
 
 
 # 学習用のサブルーチン
-def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, args):
+def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, comm, args):
     if 1:  # 並列処理のコードとインデントを揃えるため．．．
         #####################
         tInfo = TrainProcInfo()
@@ -277,7 +277,7 @@ def train_model_sub(train_mode, epoch, tData, EncDecAtt, optimizer, start_time, 
                 if train_mode > 0:  # train
                     EncDecAtt.model.cleargrads()  # パラメタ更新のためにgrad初期化
                 ###########################
-                encInfo = EncDecAtt.encodeSentenceFWD(train_mode, encSent, args, dropout_rate)
+                encInfo = EncDecAtt.encodeSentenceFWD(train_mode, encSent, args, dropout_rate, comm)
                 # loss_stat, acc_stat = EncDecAtt.trainOneMiniBatch(train_mode, decSent, encInfo, args, dropout_rate, comm)
                 loss_stat, acc_stat = decoder_processor(EncDecAtt, optimizer, train_mode, decSent, encInfo, args)
                 ###########################
@@ -416,7 +416,7 @@ def train_model(args):
             train_mode = 0
             begin = time.time()
             # sys.stdout.write('# Dev. data | total mini batch bucket size = {0}\n'.format(len(develData)))
-            tInfo = train_model_sub(train_mode, epoch, develData, EncDecAtt, None, begin, args)
+            tInfo = train_model_sub(train_mode, epoch, develData, EncDecAtt, None, begin, comm, args)
             msgA = tInfo.print_strings(train_mode, epoch, 0, 0, 0, begin, args)
             dL = prev_loss_valid - float(tInfo.lossVal)
             # sys.stdout.write('\r# Dev.Data | %s | diff: %e\n' % (msgA, dL / max(1, tInfo.instanceNum)))
