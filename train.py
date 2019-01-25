@@ -234,7 +234,7 @@ def decoder_processor(model, optimizer, train_mode, decSent, encInfo, args):
         correct += t_correct
         incorrect += t_incorrect
         if train_mode > 0 and (index + 1) % args.truncate_length == 0:
-            model.clearglads()
+            model.model.clearglads()
             trunc_loss.backward()
             trunc_loss.unchain_backward()
             optimizer.update()
