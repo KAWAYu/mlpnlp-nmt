@@ -92,6 +92,8 @@ class EncoderDecoderAttention:
     # ネットワークの各構成要素をGPUのメモリに配置
     def setToGPUs(self, args):
         if args.gpu >= 0:
+            self.model.encoderEmbed.to_gpu()
+            self.model.decoderEmbed.to_gpu()
             # sys.stderr.write('# Working on GPUs [gpu=%d]\n' % args.gpu)
             # if not args.flag_emb_cpu:  # 指定があればCPU側のメモリ上に置く
             #     self.model.encoderEmbed.to_gpu(args.gpu_enc)
