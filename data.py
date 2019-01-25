@@ -75,7 +75,7 @@ class PrepareData:
         sys.stdout.write('# data sent: %10d  sample: %10d maxlen: %10d\n' % (sentenceNum, sampleNum, maxLen))
         return d
 
-    def makeBatch4Train(self, encSentLenDict, decSentLenDict, batch_size=1, shuffle_flag=True, comm):
+    def makeBatch4Train(self, comm, encSentLenDict, decSentLenDict, batch_size=1, shuffle_flag=True):
         encSentDividedBatch = []
         for length, encSentList in encSentLenDict.items():
             random.shuffle(encSentList)  # ここで同じencLenのデータをshuffle
