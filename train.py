@@ -130,20 +130,16 @@ class TrainProcInfo:
 def setOptimizer(args, EncDecAtt, comm):
     # optimizerを構築
     if args.optimizer == 'SGD':
-        # optimizer = optimizers.SGD(lr=args.learning_rate)
         optimizer = chainermn.create_multi_node_optimizer(optimizers.SGD(lr=args.learning_rate), comm)
         # sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.lr))
     elif args.optimizer == 'Adam':
         # assert 0, "Currently Adam is not supported for asynchronous update"
-        # optimizer = optimizers.Adam(alpha=args.learning_rate)
         optimizer = chainermn.create_multi_node_optimizer(optimizers.Adam(alpha=args.learning_rate), comm)
         # sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.alpha))
     elif args.optimizer == 'MomentumSGD':
-        # optimizer = optimizers.MomentumSGD(lr=args.learning_rate)
         optimizer = chainermn.create_multi_node_optimizer(optimizers.MomentumSGD(lr=args.learning_rate), comm)
         # sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.lr))
     elif args.optimizer == 'AdaDelta':
-        # optimizer = optimizers.AdaDelta(rho=args.learning_rate)
         optimizer = chainermn.create_multi_node_optimizer(optimizers.AdaDelta(rho=args.learning_rate), comm)
         # sys.stdout.write('# SET Learning %s: initial learning rate: %e\n' % (args.optimizer, optimizer.rho))
     else:
@@ -482,7 +478,7 @@ def main():
         comm = chainermn.create_communicator('pure_nccl')
         device = comm.intra_rank
         cuda.get_device_from_id(device).use()
-        # # sys.stderr.write('w/  using GPU [%d] \n' % args.gpu)
+        # sys.stderr.write('w/  using GPU [%d] \n' % args.gpu)
         # sys.stderr.write('w/ chainerMN')
     else:
         import numpy as xp
