@@ -75,10 +75,14 @@ class PrepareData:
         sys.stdout.write('# data sent: %10d  sample: %10d maxlen: %10d\n' % (sentenceNum, sampleNum, maxLen))
         return d
 
-    def makeBatch4Train(self, encSentLenDict, decSentLenDict, batch_size=1, shuffle_flag=True):
+    def makeBatch4Train(self, encSentLenDict, decSentLenDict, batch_size=1, shuffle_flag=True, comm):
         encSentDividedBatch = []
         for length, encSentList in encSentLenDict.items():
             random.shuffle(encSentList)  # ここで同じencLenのデータをshuffle
+            tmp = []
+            for i in filter(lambda x: x % comm.rank == 0, np.arange(len(encSentList))):
+                tmp.append(encSentList[i])
+            encSentList = tmp
             iter2 = range(0, len(encSentList), batch_size)
             encSentDividedBatch.extend([encSentList[_:_ + batch_size] for _ in iter2])
         if shuffle_flag is True:
