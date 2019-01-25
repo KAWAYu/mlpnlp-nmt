@@ -80,7 +80,7 @@ class PrepareData:
         for length, encSentList in encSentLenDict.items():
             random.shuffle(encSentList)  # ここで同じencLenのデータをshuffle
             tmp = []
-            for i in filter(lambda x: x % comm.rank == 0, np.arange(len(encSentList))):
+            for i in filter(lambda x: x % 4 == comm.rank, np.arange(len(encSentList))):
                 tmp.append(encSentList[i])
             encSentList = tmp
             iter2 = range(0, len(encSentList), batch_size)
