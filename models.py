@@ -7,6 +7,7 @@ import chainer
 import chainer.links as chainL
 import chainer.functions as chainF
 from chainer.backends import cuda
+import chainermn
 
 from modules import NLayerCuLSTM, NStepLSTMpp, NLayerLSTM
 
@@ -184,8 +185,10 @@ class EncoderDecoderAttention:
 
     # encoder側の入力を処理する関数
     def encodeSentenceFWD(self, train_mode, sentence, args, dropout_rate):
-        if args.gpu >= 0:  # encとdecが別GPUの場合
-            cuda.get_device_from_id(args.gpu).use()
+        if args.gpu >= 0:
+            comm = chainermn.create_communicator('pure_nccl')
+            device = comm.intra_rank
+            cuda.get_device_from_id(device).use()
         encLen = len(sentence)  # 文長
         cMBSize = len(sentence[0])  # minibatch size
 
@@ -256,8 +259,10 @@ class EncoderDecoderAttention:
 
     ############################
     def trainOneMiniBatch(self, train_mode, decSent, encInfo, args, dropout_rate):
-        if args.gpu >= 0:  # encとdecが別GPUの場合
-            cuda.get_device_from_id(args.gpu).use()
+        if args.gpu >= 0:
+            comm = chainermn.create_communicator('pure_nccl')
+            device = comm.intra_rank
+            cuda.get_device_from_id(device).use()
         cMBSize = encInfo.cMBSize
         aList, finalHS = self.prepareDecoder(encInfo)
 
